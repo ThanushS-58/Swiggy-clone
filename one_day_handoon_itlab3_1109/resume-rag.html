@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resume RAG AI • Thanush S • SkillForge Pro</title>
+  <meta name="description" content="Strictly grounded RAG model for querying Thanush S's resume with zero hallucinations.">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Marked.js for clean markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- Resume parsers for client-side uploads -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
+  <script>
+    import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs").then(pdfjs => {
+      window.pdfjsLib = pdfjs;
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
+    });
+  </script>
+  <script src="https://unpkg.com/mammoth@1.8.0/mammoth.browser.min.js"></script>
+
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-[#0b0f19] text-slate-100 antialiased flex flex-col min-h-screen">
+
+  <header id="mainHeader" class="glass-header sticky top-0 z-40 w-full transition-colors"></header>
+
+  <main class="flex-1 py-8 md:py-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+      
+      <!-- Top Banner: Strict Grounding Indicator -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border border-slate-800 shadow-xl">
+        <div class="flex items-center gap-3.5">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25 shrink-0">
+            <i data-lucide="bot" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h1 class="text-xl font-bold text-white"><span data-resume-name>Thanush S</span> • Resume RAG Assistant</h1>
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+                Strict Grounding Active
+              </span>
+            </div>
+            <p class="text-xs text-slate-400 mt-0.5">
+              B.Tech IT • Full Stack Developer &amp; AI Applications • M. Kumarasamy College of Engineering (CGPA: 8.29)
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <a href="query.html?track=Resume%20RAG&subject=Interview%20Inquiry%20for%20Thanush%20S" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors shadow-md">
+            <i data-lucide="mail" class="w-3.5 h-3.5"></i>
+            <span>Contact Candidate</span>
+          </a>
+          <button onclick="clearChatHistory()" class="p-2 rounded-xl border border-slate-700 bg-slate-800/80 text-slate-400 hover:text-white transition-colors" title="Clear Chat History">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Dynamic Resume Source -->
+      <section id="resumeDropZone" class="p-5 rounded-2xl bg-slate-900/80 border border-dashed border-slate-700 transition-colors">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 text-sm font-bold text-white">
+              <i data-lucide="file-up" class="w-4 h-4 text-cyan-400"></i>
+              <span>Upload a resume to power this RAG</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">TXT, PDF, or DOCX up to 8 MB. The extracted text stays in this browser.</p>
+            <p id="resumeUploadStatus" class="text-xs text-emerald-300 mt-2">Using the bundled sample resume.</p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <label for="resumeFileInput" class="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-colors">
+              <i data-lucide="upload" class="w-4 h-4"></i>
+              Choose resume
+            </label>
+            <input id="resumeFileInput" type="file" accept=".txt,.md,.pdf,.docx,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="hidden">
+            <button id="resetResumeButton" type="button" class="px-3 py-2.5 rounded-xl border border-slate-700 text-slate-400 hover:text-white text-xs transition-colors" title="Use bundled sample resume">Reset</button>
+          </div>
+        </div>
+        <div id="resumeFileName" class="text-[11px] text-slate-500 font-mono mt-3"></div>
+      </section>
+
+      <!-- Main Two-Column Layout -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        <!-- Left: Chat Conversation Window -->
+        <div class="lg:col-span-8 flex flex-col bg-slate-900/90 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden" style="height: 680px;">
+          
+          <!-- Chat Window Header -->
+          <div class="px-5 py-3.5 border-b border-slate-800/80 bg-slate-950/60 flex items-center justify-between">
+            <div class="flex items-center gap-2 text-xs text-slate-300">
+              <i data-lucide="sparkles" class="w-4 h-4 text-indigo-400"></i>
+              <span class="font-semibold">Interactive Query Engine</span>
+            </div>
+            <span class="text-[11px] font-mono text-slate-500">Prompt Grounding: 100% Resume Only</span>
+          </div>
+
+          <!-- Messages Container -->
+          <div id="chatMessages" class="flex-1 p-5 overflow-y-auto space-y-4">
+            
+            <!-- Bot Greeting Message -->
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 rounded-lg bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 flex items-center justify-center shrink-0 mt-0.5">
+                <i data-lucide="bot" class="w-4 h-4"></i>
+              </div>
+              <div class="flex-1 bg-slate-950/80 border border-slate-800 rounded-2xl p-4 text-xs sm:text-sm text-slate-200 leading-relaxed shadow-sm">
+                <p class="font-semibold text-white mb-1.5">Upload a resume, then ask questions grounded in its contents.</p>
+                <p class="text-slate-300 mb-2">
+                  You can ask about the candidate's education, skills, experience, projects, certifications, or any other details found in the uploaded document.
+                </p>
+                <p class="text-[11px] text-indigo-300 font-mono bg-indigo-950/40 p-2 rounded-lg border border-indigo-500/20">
+                  🔒 <strong>Guardrail Enforcement:</strong> I will strictly answer only what is documented in the uploaded resume. If an inquiry asks about unlisted skills, personal details, or external facts, I will explicitly decline without hallucinating.
+                </p>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Quick Suggestion Chips -->
+          <div class="px-4 py-2.5 bg-slate-950/40 border-t border-slate-800/60 overflow-x-auto flex items-center gap-2">
+            <span class="text-[10px] text-slate-500 uppercase tracking-wider font-bold shrink-0">Try asking:</span>
+            <button onclick="sendPreset('What are his Microsoft Azure certifications?')" class="chip-btn">Azure Certifications?</button>
+            <button onclick="sendPreset('Explain his role and achievements at TIH MKCE')" class="chip-btn">Work Experience?</button>
+            <button onclick="sendPreset('What accuracy did the Medicinal Plant AI project achieve?')" class="chip-btn">Medicinal Plant AI Project?</button>
+            <button onclick="sendPreset('What is his B.Tech CGPA and college?')" class="chip-btn">College &amp; CGPA?</button>
+            <button onclick="sendPreset('What IEEE research papers has he published?')" class="chip-btn">IEEE Papers?</button>
+            <button onclick="sendPreset('Does he know Rust or Docker?')" class="chip-btn-alert">Test Guardrail (Rust/Docker)</button>
+            <button onclick="sendPreset('What is his favorite food?')" class="chip-btn-alert">Test Guardrail (Favorite Food)</button>
+          </div>
+
+          <!-- Input Bar -->
+          <div class="p-4 bg-slate-950 border-t border-slate-800">
+            <form onsubmit="handleUserSubmit(event)" class="flex items-center gap-3">
+              <input id="userQueryInput" type="text" placeholder="Ask any question about Thanush's resume..." 
+                     class="flex-1 bg-slate-900 border border-slate-700/80 rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-medium">
+              <button type="submit" class="px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5 shrink-0">
+                <span>Ask</span>
+                <i data-lucide="send" class="w-3.5 h-3.5"></i>
+              </button>
+            </form>
+          </div>
+
+        </div>
+
+        <!-- Right: RAG Chunks Inspector & Candidate Profile Snapshot -->
+        <div class="lg:col-span-4 space-y-6">
+          
+          <!-- Candidate Snapshot Card -->
+          <div class="glass-panel p-5 rounded-2xl">
+            <h3 class="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <i data-lucide="user-check" class="w-4 h-4"></i>
+              <span>Candidate Dossier</span>
+            </h3>
+
+            <div class="space-y-2.5 text-xs text-slate-300">
+              <div class="flex justify-between pb-1.5 border-b border-slate-800">
+                <span class="text-slate-500">Name:</span>
+                <span class="font-bold text-white" data-resume-name>Thanush S</span>
+              </div>
+              <div class="flex justify-between pb-1.5 border-b border-slate-800">
+                <span class="text-slate-500">Location:</span>
+                <span id="resumeLocation">Karur, India</span>
+              </div>
+              <div class="flex justify-between pb-1.5 border-b border-slate-800">
+                <span class="text-slate-500">Education:</span>
+                <span id="resumeEducation" class="text-right">B.Tech IT (2023–2027)</span>
+              </div>
+              <div class="flex justify-between pb-1.5 border-b border-slate-800">
+                <span class="text-slate-500">Skills:</span>
+                <span id="resumeSkills" class="text-right text-[11px]">See bundled resume</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-500">Email:</span>
+                <span id="resumeEmail" class="text-indigo-400">thanush205s@gmail.com</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Retrieved Source Chunks Inspector -->
+          <div class="glass-panel p-5 rounded-2xl">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                <i data-lucide="database" class="w-4 h-4"></i>
+                <span>Retrieved Chunks Inspector</span>
+              </h3>
+              <span id="ragScoreBadge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">Awaiting query</span>
+            </div>
+            <p class="text-[11px] text-slate-400 mb-3">
+              Examine the semantic chunks retrieved by the RAG model for the most recent response.
+            </p>
+
+            <div id="retrievedChunksList" class="space-y-2.5 max-h-80 overflow-y-auto">
+              <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 text-[11px] text-slate-500 text-center">
+                Submit a question to inspect retrieved grounding chunks.
+              </div>
+            </div>
+          </div>
+
+          <!-- Guardrail Architecture Spec Card -->
+          <div class="p-5 rounded-2xl bg-indigo-950/30 border border-indigo-500/30 text-xs text-slate-300 space-y-2">
+            <div class="flex items-center gap-2 font-bold text-white">
+              <i data-lucide="shield" class="w-4 h-4 text-indigo-400"></i>
+              <span>RAG Guardrail Architecture</span>
+            </div>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              1. <strong>Vector &amp; Lexical Chunking:</strong> 14 granular semantic sections.
+            </p>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              2. <strong>Grounding Threshold:</strong> Rejects prompts with low match confidence.
+            </p>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              3. <strong>Anti-Hallucination Fallback:</strong> Disallows guessing external or unverified info.
+            </p>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <footer id="mainFooter"></footer>
+
+  <script src="js/data/resume-chunks.js"></script>
+  <script src="js/rag-engine.js"></script>
+  <script src="js/resume-upload.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+
+  <style>
+    .chip-btn {
+      padding: 4px 10px;
+      font-size: 11px;
+      border-radius: 8px;
+      background-color: rgba(30, 41, 59, 0.8);
+      color: #cbd5e1;
+      border: 1px solid rgba(71, 85, 105, 0.5);
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .chip-btn:hover {
+      background-color: #4f46e5;
+      color: #ffffff;
+      border-color: #6366f1;
+    }
+    .chip-btn-alert {
+      padding: 4px 10px;
+      font-size: 11px;
+      border-radius: 8px;
+      background-color: rgba(225, 29, 72, 0.15);
+      color: #f43f5e;
+      border: 1px solid rgba(225, 29, 72, 0.4);
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .chip-btn-alert:hover {
+      background-color: #e11d48;
+      color: #ffffff;
+    }
+  </style>
+
+  <script>
+    function handleUserSubmit(event) {
+      event.preventDefault();
+      const input = document.getElementById("userQueryInput");
+      const text = (input.value || "").trim();
+      if (!text) return;
+      input.value = "";
+      processQuery(text);
+    }
+
+    function sendPreset(queryText) {
+      processQuery(queryText);
+    }
+
+    function processQuery(queryText) {
+      const chatContainer = document.getElementById("chatMessages");
+
+      // 1. Append User Bubble
+      const userBubble = document.createElement("div");
+      userBubble.className = "flex items-start justify-end gap-3";
+      userBubble.innerHTML = `
+        <div class="max-w-xl bg-indigo-600 text-white rounded-2xl p-3.5 text-xs sm:text-sm shadow-md">
+          ${escapeHtml(queryText)}
+        </div>
+        <div class="w-8 h-8 rounded-lg bg-indigo-700 text-white flex items-center justify-center shrink-0 mt-0.5">
+          <i data-lucide="user" class="w-4 h-4"></i>
+        </div>
+      `;
+      chatContainer.appendChild(userBubble);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+      if (window.lucide) window.lucide.createIcons();
+
+      // 2. Compute RAG Answer
+      if (window.ResumeRAGEngine) {
+        const result = window.ResumeRAGEngine.answer(queryText);
+
+        setTimeout(() => {
+          // Render Bot Bubble
+          const botBubble = document.createElement("div");
+          botBubble.className = "flex items-start gap-3";
+
+          const parsedHtml = window.marked ? window.marked.parse(result.answer) : result.answer;
+
+          botBubble.innerHTML = `
+            <div class="w-8 h-8 rounded-lg ${result.isRefusal ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-indigo-600/30 text-indigo-300 border border-indigo-500/40'} flex items-center justify-center shrink-0 mt-0.5">
+              <i data-lucide="${result.isRefusal ? 'alert-triangle' : 'bot'}" class="w-4 h-4"></i>
+            </div>
+            <div class="max-w-2xl bg-slate-950/90 border ${result.isRefusal ? 'border-amber-500/30' : 'border-slate-800'} rounded-2xl p-4 text-xs sm:text-sm text-slate-200 leading-relaxed shadow-sm">
+              <div class="prose prose-invert max-w-none text-xs sm:text-sm">
+                ${parsedHtml}
+              </div>
+              <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 font-mono">
+                <span>Source: ${escapeHtml(result.source || 'Resume')}</span>
+                <span class="${result.confidence > 50 ? 'text-emerald-400' : 'text-slate-500'}">Confidence: ${result.confidence}%</span>
+              </div>
+            </div>
+          `;
+          chatContainer.appendChild(botBubble);
+          chatContainer.scrollTop = chatContainer.scrollHeight;
+          if (window.lucide) window.lucide.createIcons();
+
+          // 3. Update Retrieved Chunks Inspector
+          updateChunksInspector(result);
+        }, 180);
+      }
+    }
+
+    function updateChunksInspector(result) {
+      const container = document.getElementById("retrievedChunksList");
+      const badge = document.getElementById("ragScoreBadge");
+
+      if (badge) {
+        badge.innerText = `${result.confidence}% Match`;
+        badge.className = `text-[10px] font-mono px-2 py-0.5 rounded border ${
+          result.confidence > 60 ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'
+        }`;
+      }
+
+      if (!result.retrievedChunks || result.retrievedChunks.length === 0) {
+        container.innerHTML = `
+          <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 text-[11px] text-amber-300">
+            ⚠️ No matching resume chunks found. Query was rejected under zero-hallucination guardrail.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = result.retrievedChunks.map((chunk, idx) => `
+        <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-slate-700 transition-all text-xs">
+          <div class="flex items-center justify-between gap-1 mb-1">
+            <span class="text-[10px] font-mono text-indigo-400 font-bold">#${idx + 1} ${escapeHtml(chunk.section)}</span>
+            <span class="text-[9px] font-mono bg-slate-900 px-1.5 py-0.5 rounded text-slate-400">${escapeHtml(chunk.id)}</span>
+          </div>
+          <p class="text-[11px] text-slate-400 leading-snug line-clamp-3">
+            ${escapeHtml(chunk.content)}
+          </p>
+        </div>
+      `).join("");
+    }
+
+    function clearChatHistory() {
+      const container = document.getElementById("chatMessages");
+      container.innerHTML = `
+        <div class="flex items-start gap-3">
+          <div class="w-8 h-8 rounded-lg bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 flex items-center justify-center shrink-0 mt-0.5">
+            <i data-lucide="bot" class="w-4 h-4"></i>
+          </div>
+          <div class="flex-1 bg-slate-950/80 border border-slate-800 rounded-2xl p-4 text-xs sm:text-sm text-slate-200 leading-relaxed shadow-sm">
+            <p class="font-semibold text-white mb-1">Chat history cleared.</p>
+            <p class="text-slate-300 text-xs">Ask any question about Thanush S's resume.</p>
+          </div>
+        </div>
+      `;
+      document.getElementById("retrievedChunksList").innerHTML = `
+        <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 text-[11px] text-slate-500 text-center">
+          Submit a question to inspect retrieved grounding chunks.
+        </div>
+      `;
+      document.getElementById("ragScoreBadge").innerText = "Awaiting query";
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.lucide) window.lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
+

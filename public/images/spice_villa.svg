@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#ffedd5"/>
+      <stop offset="100%" stop-color="#fbbf24"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#bg)"/>
+  <circle cx="900" cy="170" r="120" fill="#f97316" opacity="0.2"/>
+  <circle cx="300" cy="620" r="180" fill="#f59e0b" opacity="0.25"/>
+  <rect x="190" y="240" width="820" height="330" rx="38" fill="#fff7ed" opacity="0.85"/>
+  <circle cx="470" cy="400" r="120" fill="#f97316"/>
+  <circle cx="670" cy="400" r="100" fill="#fbbf24"/>
+  <rect x="380" y="280" width="70" height="170" rx="20" fill="#7c2d12" opacity="0.8"/>
+  <rect x="710" y="310" width="120" height="110" rx="28" fill="#7c2d12" opacity="0.8"/>
+  <text x="600" y="640" text-anchor="middle" fill="#7c2d12" font-family="Arial, sans-serif" font-size="72" font-weight="700">Spice Villa</text>
+</svg>
